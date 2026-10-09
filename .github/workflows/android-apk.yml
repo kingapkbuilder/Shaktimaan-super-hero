@@ -1,0 +1,69 @@
+name: Build Shakti Hero Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    container:
+      image: barichello/godot-ci:4.3.0
+
+    steps:
+      - name: Checkout Game Source
+        uses: actions/checkout@v4
+
+      - name: Check Godot Version
+        run: godot --version
+
+      - name: Install Android Export Templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+
+          wget -q \
+            https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz \
+            -O /tmp/templates.tpz
+
+          mkdir -p /tmp/godot_templates
+
+          unzip -oq /tmp/templates.tpz \
+            -d /tmp/godot_templates
+
+          cp /tmp/godot_templates/templates/* \
+            ~/.local/share/godot/export_templates/4.3.stable/
+
+      - name: Import Game Resources
+        run: |
+          godot --headless --editor \
+            --path . \
+            --quit
+
+      - name: Build Android APK
+        run: |
+          mkdir -p build
+
+          godot --headless \
+            --path . \
+            --export-debug "Android" \
+            build/ShaktiHero3D.apk
+
+      - name: Verify APK
+        run: |
+          test -s build/ShaktiHero3D.apk
+          ls -lh build/ShaktiHero3D.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShaktiHero3D-Android-APK
+          path: build/ShaktiHero3D.apk
+          if-no-files-found: error
+          retention-days: 7
